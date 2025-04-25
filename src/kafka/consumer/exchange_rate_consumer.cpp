@@ -83,7 +83,7 @@ int main (int argc, char **argv) {
         rd_kafka_message_destroy(consumer_message);
     }
 
-    g_message( "Closing consumer");
+    g_message("Closing consumer");
     rd_kafka_consumer_close(consumer);
     rd_kafka_destroy(consumer);
 

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <format>
 
-ArbitrageDetector::ArbitrageDetector(std::shared_ptr<RedisWrapperInterface> _redisClient) : redisClient(_redisClient) {
+ArbitrageDetector::ArbitrageDetector(std::shared_ptr<IRedisWrapper> _redisClient) : redisClient(_redisClient) {
     graph = std::vector<std::vector<double>>(nOfCurrencies, std::vector<double>(nOfCurrencies, DOUBLE_MAX));
     exchangeCost = std::vector<double>(nOfCurrencies, DOUBLE_MAX);
     previousCurrency = std::vector<int>(nOfCurrencies, -1);
@@ -41,62 +41,22 @@ ExchangeCostUpdateResponse ArbitrageDetector::updateExchangeCost(ExchangeRateEdg
     return ExchangeCostUpdateResponse::FAIL;
 }
 
-void ArbitrageDetector::printArbitrage(int currencyIdx) {
-    for (int _ = 0; _ < nOfCurrencies; ++_) {
-        currencyIdx = previousCurrency[currencyIdx];
-    }
-    std::cerr << "[" << std::format("{0:%F_%T}", std::chrono::system_clock::now()) << "] ";
-    std::cerr << "Arbitrage detected @ " << CURRENCIES[currencyIdx];
-    int previousCurrencyIdx = previousCurrency[currencyIdx];
-    double profit = graph[previousCurrencyIdx][currencyIdx];
-    do {
-        std::cerr << " <- " << CURRENCIES[previousCurrencyIdx];
-        profit += graph[previousCurrency[previousCurrencyIdx]][previousCurrencyIdx];
-        previousCurrencyIdx = previousCurrency[previousCurrencyIdx];
-    } while (previousCurrencyIdx != currencyIdx);
-    std::cerr << " <- " << CURRENCIES[currencyIdx];
-    std::cerr << " | Profit = " << std::format("{:.9f}%", 100.0 * (std::exp(-profit) - 1.0)) << '\n';
-}
-
-void ArbitrageDetector::runBellmanFord() {
-    std::fill(exchangeCost.begin(), exchangeCost.end(), DOUBLE_MAX);
-    std::fill(previousCurrency.begin(), previousCurrency.end(), -1);
-    exchangeCost[designatedCurrencyRoot] = 0;
-    for (int _ = 0; _ < nOfCurrencies - 1; ++_) {
-        for (ExchangeRateEdge& edge : edges) {
-            updateExchangeCost(edge);
-        }
-    }
-
-    for (ExchangeRateEdge& edge : edges) {
-        ExchangeCostUpdateResponse res = updateExchangeCost(edge, false);
-        if (res == ExchangeCostUpdateResponse::SUCCESS) {
-            printArbitrage(edge.second);
-        }
-    }
-}
-
 void ArbitrageDetector::printArbitrage(std::vector<int> currencies) {
-    std::cerr << "[" << std::format("{0:%F_%T}", std::chrono::system_clock::now()) << "] ";
-    std::cerr << "Arbitrage detected @ ";
+    std::cout << "Arbitrage detected @ ";
     double profit = 0;
     int previousCurrencyIdx = -1;
     for (int currencyIdx : currencies) {
-        std::cerr << CURRENCIES[currencyIdx] << " -> ";
+        std::cout << CURRENCIES[currencyIdx] << " -> ";
         if (previousCurrencyIdx != -1) {
             profit += graph[previousCurrencyIdx][currencyIdx];
         }
         previousCurrencyIdx = currencyIdx;
     }
     profit += graph[previousCurrencyIdx][currencies[0]];
-    std::cerr << CURRENCIES[currencies[0]] << " | Profit = " << std::format("{:.9f}%", 100.0 * (std::exp(-profit) - 1.0)) << '\n';
+    std::cout << CURRENCIES[currencies[0]] << " | Profit = " << std::format("{:.9f}%", 100.0 * (std::exp(-profit) - 1.0)) << '\n';
 }
 
-void ArbitrageDetector::runArbitrageDetector(bool bellmanFord) {
-    if (bellmanFord) {
-        runBellmanFord();
-        return;
-    }
+void ArbitrageDetector::runArbitrageDetector() {
     auto start = std::chrono::system_clock::now();
     int cnt = 0;
     for (int i = 0; i < nOfCurrencies; i++) {
@@ -118,5 +78,4 @@ void ArbitrageDetector::runArbitrageDetector(bool bellmanFord) {
     }
     auto end = std::chrono::system_clock::now();
     std::cerr << "time elapsed === " << end - start << " for " << cnt << " arbitrages" << '\n';
-    int x; std::cin >> x;
 }

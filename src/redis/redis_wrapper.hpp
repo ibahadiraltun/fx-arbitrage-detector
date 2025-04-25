@@ -4,9 +4,15 @@
 #include <sw/redis++/redis++.h>
 #include <string>
 #include <optional>
-#include "redis_wrapper_interface.hpp"
 
-class RedisWrapper : public RedisWrapperInterface {
+class IRedisWrapper {
+public:
+    virtual ~IRedisWrapper() = default;
+    virtual std::optional<std::string> get(const std::string& key) = 0;
+    virtual void set(const std::string& key, const std::string& value) = 0;
+};
+
+class RedisWrapper : public IRedisWrapper {
 public:
     RedisWrapper(const std::string& host = "127.0.0.1", int port = 6379);
     void set(const std::string& key, const std::string& value) override;

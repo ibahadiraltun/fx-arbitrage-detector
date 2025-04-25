@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <string>
-#include "../redis/redis_wrapper_interface.hpp"
 #include "../redis/redis_wrapper.hpp"
 
 const std::vector<std::string> CURRENCIES = {
@@ -14,7 +13,7 @@ const std::vector<std::string> CURRENCIES = {
     "cop", "rub", "ron", "pen"
 };
 constexpr double DOUBLE_MAX = std::numeric_limits<double>::max();
-constexpr int nOfCurrencies = 36; // until sgd
+constexpr int nOfCurrencies = 10; // until sgd
 
 typedef std::vector<std::vector<double>> ExchangeRateGraph;
 typedef std::pair<int,int> ExchangeRateEdge;
@@ -22,15 +21,15 @@ enum ExchangeCostUpdateResponse { SUCCESS, FAIL };
 
 class ArbitrageDetector {
 public:
-    ArbitrageDetector(std::shared_ptr<RedisWrapperInterface> _redisClient);
+    ArbitrageDetector(std::shared_ptr<IRedisWrapper> _redisClient);
     void pullGraph();
-    void runArbitrageDetector(bool bellmanFord = false);
+    void runArbitrageDetector();
     ExchangeRateGraph getGraph() { return graph; }
     std::vector<ExchangeRateEdge> getEdges() { return edges; }
     std::vector<double> getExchangeCost() { return exchangeCost; }
     std::vector<int> getPreviousCurrency() { return previousCurrency; }
 private:
-    std::shared_ptr<RedisWrapperInterface> redisClient;
+    std::shared_ptr<IRedisWrapper> redisClient;
     ExchangeRateGraph graph;
     std::vector<ExchangeRateEdge> edges;
     std::vector<double> exchangeCost;

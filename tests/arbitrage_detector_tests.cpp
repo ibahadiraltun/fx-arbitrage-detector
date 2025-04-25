@@ -3,7 +3,7 @@
 #include <limits.h>
 #include "../src/arbitrage/arbitrage_detector.hpp"
 
-class FakeRedisWrapper : public RedisWrapperInterface {
+class FakeRedisWrapper : public IRedisWrapper {
 public:
     FakeRedisWrapper() : data({}) {}
     void set(const std::string& key, const std::string& value) override {
@@ -13,15 +13,14 @@ public:
         if (data.find(key) != data.end()) {
             return data[key];
         }
-        return nullptr;
+        return std::nullopt;
     }
 private:
     std::unordered_map<std::string,std::string> data;
-};
-        
+};  
 
 TEST(ArbitrageDetectorTest, DefaultConstructor) {
-    std::shared_ptr<RedisWrapperInterface> redisClient = std::make_shared<RedisWrapper>("127.0.0.1", 6379);
+    std::shared_ptr<IRedisWrapper> redisClient = std::make_shared<FakeRedisWrapper>();
     ArbitrageDetector detector(redisClient);
     EXPECT_EQ(nOfCurrencies, detector.getGraph().size());
     EXPECT_EQ(nOfCurrencies, detector.getGraph()[0].size());
@@ -41,7 +40,7 @@ TEST(ArbitrageDetectorTest, DefaultConstructor) {
 }
 
 TEST(ArbitrageDetectorTest, PullGraph) {
-    std::shared_ptr<RedisWrapperInterface> redisClient = std::make_shared<FakeRedisWrapper>();
+    std::shared_ptr<IRedisWrapper> redisClient = std::make_shared<FakeRedisWrapper>();
     ArbitrageDetector detector(redisClient);
     int fakeRate = 0;
     std::vector<std::vector<double>> data(nOfCurrencies, std::vector<double>(nOfCurrencies, 0));
@@ -50,6 +49,7 @@ TEST(ArbitrageDetectorTest, PullGraph) {
             std::string key = CURRENCIES[i] + ":" + CURRENCIES[j];
             data[i][j] = -log(fakeRate);
             redisClient->set(key, std::to_string(fakeRate));
+            fakeRate += 0.1;
         }
     }
 
@@ -62,3 +62,19 @@ TEST(ArbitrageDetectorTest, PullGraph) {
         }
     }
 }
+
+TEST(ArbitrageDetectorTest, RunArbitrageDetector) {
+    std::shared_ptr<IRedisWrapper> redisClient = std::make_shared<FakeRedisWrapper>();
+    ArbitrageDetector detector(redisClient);
+    redisClient->set("usd:eur", "0.5"); // 0-1
+    redisClient->set("eur:jpy", "1.3"); // 1-2
+    redisClient->set("jpy:usd", "1.7"); // 2-0
+    detector.pullGraph();
+    testing::internal::CaptureStdout();
+    detector.runArbitrageDetector();
+    std::string expected = "Arbitrage detected @ usd -> eur -> jpy -> usd | Profit = 10.500000000%\n";
+    expected += "Arbitrage detected @ eur -> jpy -> usd -> eur | Profit = 10.500000000%\n";
+    expected += "Arbitrage detected @ jpy -> usd -> eur -> jpy | Profit = 10.500000000%\n";
+    EXPECT_EQ(expected, testing::internal::GetCapturedStdout());
+}
+
