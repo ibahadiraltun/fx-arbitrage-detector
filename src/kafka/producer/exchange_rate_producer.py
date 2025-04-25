@@ -25,8 +25,8 @@ def callback(err, msg):
 
 
 def fetch_rate(currency='usd'):
-    api = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/' + f'{currency}.json'
-    return requests.get(api).json()
+    endpoint = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/' + f'{currency}.min.json'
+    return requests.get(endpoint).json()
 
 
 producer = Producer({**config, "acks": "all"})
