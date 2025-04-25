@@ -61,7 +61,7 @@ void ArbitrageDetector::printArbitrage(int currencyIdx) {
 void ArbitrageDetector::runBellmanFord() {
     std::fill(exchangeCost.begin(), exchangeCost.end(), DOUBLE_MAX);
     std::fill(previousCurrency.begin(), previousCurrency.end(), -1);
-    exchangeCost[designatedRoot] = 0;
+    exchangeCost[designatedCurrencyRoot] = 0;
     for (int _ = 0; _ < nOfCurrencies - 1; ++_) {
         for (ExchangeRateEdge& edge : edges) {
             updateExchangeCost(edge);
@@ -97,6 +97,8 @@ void ArbitrageDetector::runArbitrageDetector(bool bellmanFord) {
         runBellmanFord();
         return;
     }
+    auto start = std::chrono::system_clock::now();
+    int cnt = 0;
     for (int i = 0; i < nOfCurrencies; i++) {
         for (int j = 0; j < nOfCurrencies; j++) {
             if (i == j) {
@@ -109,10 +111,14 @@ void ArbitrageDetector::runArbitrageDetector(bool bellmanFord) {
                 double cost = graph[i][j] + graph[j][k] + graph[k][i];
                 if (cost < 0) {
                     printArbitrage({i, j, k});
+                    cnt++;
                 }
             }
         }
     }
+    auto end = std::chrono::system_clock::now();
+    std::cerr << "time elapsed === " << end - start << " for " << cnt << " arbitrages" << '\n';
+    int x; std::cin >> x;
 }
 
 int main() {

@@ -13,7 +13,7 @@ const std::vector<std::string> CURRENCIES = {
     "cop", "rub", "ron", "pen"
 };
 constexpr double DOUBLE_MAX = std::numeric_limits<double>::max();
-constexpr int nOfCurrencies = 36;
+constexpr int nOfCurrencies = 10; // until sgd
 
 typedef std::vector<std::vector<double>> ExchangeRateGraph;
 typedef std::pair<int,int> ExchangeRateEdge;
@@ -30,7 +30,7 @@ private:
     std::vector<ExchangeRateEdge> edges;
     std::vector<double> exchangeCost;
     std::vector<int> previousCurrency;
-    int designatedRoot = 13;
+    int designatedCurrencyRoot = 0;
 
     ExchangeCostUpdateResponse updateExchangeCost(ExchangeRateEdge& edge, bool updateParent = true);
     void runBellmanFord();

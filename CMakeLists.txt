@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.17)
 project(fx_arbitrage_detector)
 
+enable_testing()
+
 set(CMAKE_CXX_STANDARD 20)
 
 include_directories(/opt/homebrew/include)
@@ -14,13 +16,20 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/opt/homebrew/Cellar/hiredis/1.2.0/inc
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/local/include -I/opt/homebrew/Cellar/hiredis/1.2.0/include/hiredis -I/opt/homebrew/Cellar/hiredis/1.2.0/include -D_FILE_OFFSET_BITS=64 -L/usr/local/lib -lredis++ -L/opt/homebrew/Cellar/hiredis/1.2.0/lib -lhiredis")
 
 add_executable(kafka_consumer
-    src/kafka/consumer/exchange_rate_consumer.cc
-    src/redis/redis_wrapper.cc
+    src/kafka/consumer/exchange_rate_consumer.cpp
+    src/redis/redis_wrapper.cpp
 )
 target_link_libraries(kafka_consumer PRIVATE redis++ hiredis)
 
 add_executable(fx_arbitrage_detector
-    src/arbitrage/arbitrage_detector.cc    
-    src/redis/redis_wrapper.cc
+    src/arbitrage/arbitrage_detector.cpp   
+    src/redis/redis_wrapper.cpp
 )
-target_link_libraries(fx_arbitrage_detector PRIVATE redis++ hiredis)
+target_link_libraries(fx_arbitrage_detector PRIVATE redis++ hiredis PUBLIC gtest_main)
+
+add_executable(example tests/ex.cpp)
+add_executable(example2 tests/ex2.cpp)
+target_link_libraries(example PUBLIC gtest_main)
+target_link_libraries(example2 PUBLIC gtest_main)
+add_test(NAME example_test COMMAND example)
+add_test(NAME example_test2 COMMAND example2)
