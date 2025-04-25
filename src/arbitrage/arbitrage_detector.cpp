@@ -2,7 +2,7 @@
 #include <iostream>
 #include <format>
 
-ArbitrageDetector::ArbitrageDetector(std::shared_ptr<RedisWrapper> _redisClient) : redisClient(_redisClient) {
+ArbitrageDetector::ArbitrageDetector(std::shared_ptr<RedisWrapperInterface> _redisClient) : redisClient(_redisClient) {
     graph = std::vector<std::vector<double>>(nOfCurrencies, std::vector<double>(nOfCurrencies, DOUBLE_MAX));
     exchangeCost = std::vector<double>(nOfCurrencies, DOUBLE_MAX);
     previousCurrency = std::vector<int>(nOfCurrencies, -1);
@@ -55,7 +55,7 @@ void ArbitrageDetector::printArbitrage(int currencyIdx) {
         previousCurrencyIdx = previousCurrency[previousCurrencyIdx];
     } while (previousCurrencyIdx != currencyIdx);
     std::cerr << " <- " << CURRENCIES[currencyIdx];
-    std::cerr << " | Profit = " << std::format("{:.9f}%", std::exp(-profit) - 1.0) << '\n';
+    std::cerr << " | Profit = " << std::format("{:.9f}%", 100.0 * (std::exp(-profit) - 1.0)) << '\n';
 }
 
 void ArbitrageDetector::runBellmanFord() {
@@ -89,7 +89,7 @@ void ArbitrageDetector::printArbitrage(std::vector<int> currencies) {
         previousCurrencyIdx = currencyIdx;
     }
     profit += graph[previousCurrencyIdx][currencies[0]];
-    std::cerr << CURRENCIES[currencies[0]] << " | Profit = " << std::format("{:.9f}%", std::exp(-profit) - 1.0) << '\n';
+    std::cerr << CURRENCIES[currencies[0]] << " | Profit = " << std::format("{:.9f}%", 100.0 * (std::exp(-profit) - 1.0)) << '\n';
 }
 
 void ArbitrageDetector::runArbitrageDetector(bool bellmanFord) {
@@ -119,15 +119,4 @@ void ArbitrageDetector::runArbitrageDetector(bool bellmanFord) {
     auto end = std::chrono::system_clock::now();
     std::cerr << "time elapsed === " << end - start << " for " << cnt << " arbitrages" << '\n';
     int x; std::cin >> x;
-}
-
-int main() {
-    std::shared_ptr<RedisWrapper> redisClient = std::make_shared<RedisWrapper>("127.0.0.1", 6379);
-    ArbitrageDetector detector(redisClient);
-    while (true) {
-        detector.pullGraph();
-        detector.runArbitrageDetector();
-    }
-
-    return 0;
 }

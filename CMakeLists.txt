@@ -22,14 +22,16 @@ add_executable(kafka_consumer
 target_link_libraries(kafka_consumer PRIVATE redis++ hiredis)
 
 add_executable(fx_arbitrage_detector
-    src/arbitrage/arbitrage_detector.cpp   
+    src/arbitrage/main.cpp
+    src/arbitrage/arbitrage_detector.cpp
     src/redis/redis_wrapper.cpp
 )
-target_link_libraries(fx_arbitrage_detector PRIVATE redis++ hiredis PUBLIC gtest_main)
+target_link_libraries(fx_arbitrage_detector PRIVATE redis++ hiredis)
 
-add_executable(example tests/ex.cpp)
-add_executable(example2 tests/ex2.cpp)
-target_link_libraries(example PUBLIC gtest_main)
-target_link_libraries(example2 PUBLIC gtest_main)
-add_test(NAME example_test COMMAND example)
-add_test(NAME example_test2 COMMAND example2)
+add_executable(ArbitrageDetectorTest
+    tests/arbitrage_detector_tests.cpp
+    src/arbitrage/arbitrage_detector.cpp
+    src/redis/redis_wrapper.cpp
+)
+target_link_libraries(ArbitrageDetectorTest PRIVATE redis++ hiredis PUBLIC gtest_main)
+add_test(NAME ArbitrageDetectorTest COMMAND ArbitrageDetectorTest)
