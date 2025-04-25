@@ -37,10 +37,9 @@ TEST(ArbitrageDetectorTest, DecodeIndexPair) {
     int cnt = 0;
     for (int i = 0; i < nOfCurrencies; i++) {
         for (int j = 0; j < nOfCurrencies; j++) {
-            if (i == j) {
-                continue;
+            if (i != j) {
+                EXPECT_EQ(std::vector<int>({i, j}), detector.decodeIndexPair(cnt++));
             }
-            EXPECT_EQ(std::vector<int>({i, j}), detector.decodeIndexPair(cnt++));
         }
     }
 }
@@ -55,10 +54,9 @@ TEST(ArbitrageDetectorTest, DecodeIndexTriplet) {
                 continue;
             }
             for (int k = 0; k < nOfCurrencies; k++) {
-                if (k == i || k == j) {
-                    continue;
+                if (k != i && k != j) {
+                    EXPECT_EQ(std::vector<int>({i, j, k}), detector.decodeIndexTriplet(cnt++));
                 }
-                EXPECT_EQ(std::vector<int>({i, j, k}), detector.decodeIndexTriplet(cnt++));
             }
         }
     }

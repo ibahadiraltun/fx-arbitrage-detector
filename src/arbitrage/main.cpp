@@ -10,8 +10,8 @@ int main() {
     std::vector<std::future<void>> threadsPull;
     std::vector<std::future<int>> threadsDetect;
     int p = nOfCurrencies * (nOfCurrencies - 1); // number of threads to pull data (dependent to redis client)
-    int q = 1; // number of threads to check arbitrages (CPU only, no dependency)
-    // std::cout << 8 == std::thread::hardware_concurrency() << '\n';
+    int q = nOfCurrencies; // number of threads to check arbitrages (CPU only, no dependency)
+    std::cout << "max supported parallel threads:" << std::thread::hardware_concurrency() << '\n';
     for (int i = 0; i < p; i++) {
         threadsPull.emplace_back(std::async(std::launch::async, [&detector, i, p]() {
             std::vector<int> decodedIndices;
