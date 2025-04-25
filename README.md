@@ -66,9 +66,9 @@ make
 pip install confluent-kafka requests
 ```
 **Running:**
-- Kafka producer could be run using `cd src/kafka/producer && python exchange_rate_producer.py`.  
-- Kafka consumer is compiled and ready to execute in build by `cd build && ./kafka_consumer`.  
-- Arbitrage component is compiled and ready to execute by `cd build && ./fx_arbitrage_detector`.
+- Kafka producer could be run using `python src/kafka/producer/exchange_rate_producer.py`.  
+- Kafka consumer is compiled and ready to execute by `./build/kafka_consumer`.  
+- Arbitrage component is compiled and ready to execute by `./build/fx_arbitrage_detector`.
 
 ## Examples
 <img width="724" alt="Screenshot 2025-04-23 at 16 14 45" src="https://github.com/user-attachments/assets/12a3ba62-922a-43e4-b3bd-b8a0b0db84a1" />
