@@ -68,7 +68,10 @@ int main (int argc, char **argv) {
                 return 1;
             }
         } else {
-            redis.set((const char*) consumer_message->key, (const char*) consumer_message->payload);
+            redis.set(
+                std::string((const char *) consumer_message->key, (int) consumer_message->key_len).c_str(),
+                (const char*) consumer_message->payload
+            );
             g_message("Consumed event from topic %s: key = %.*s value = %s partition = %d",
                       rd_kafka_topic_name(consumer_message->rkt),
                       (int)consumer_message->key_len,

@@ -40,7 +40,7 @@ while True:
             producer.produce(
                 topic=topic_name,
                 value=str(rate),
-                key=f"{base_currency}:{target_currency}@{timestamp}",
+                key=f"{base_currency}:{target_currency}",
                 partition=idx,
                 callback=callback
             )

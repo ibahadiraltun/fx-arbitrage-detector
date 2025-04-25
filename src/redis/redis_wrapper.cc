@@ -18,7 +18,7 @@ void RedisWrapper::set(const std::string& key, const std::string& value) {
     try {
         redis_->set(key, value);
     } catch (const std::exception &err) {
-        std::cerr << "Redis SET is failed for key = " << key << " value = " << value << '\n';
+        std::cerr << "Redis SET is failed for key = " << key << ", value = " << value << '\n';
     }
 }
 
