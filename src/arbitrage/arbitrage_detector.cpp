@@ -4,44 +4,50 @@
 
 ArbitrageDetector::ArbitrageDetector(std::shared_ptr<IRedisWrapper> _redisClient) : redisClient(_redisClient) {
     graph = std::vector<std::vector<double>>(nOfCurrencies, std::vector<double>(nOfCurrencies, DOUBLE_MAX));
-    exchangeCost = std::vector<double>(nOfCurrencies, DOUBLE_MAX);
-    previousCurrency = std::vector<int>(nOfCurrencies, -1);
 };
 
-void ArbitrageDetector::pullGraph() {
+std::vector<int> ArbitrageDetector::decodeIndexPair(int index) {
+    int startIndex = index / (nOfCurrencies - 1);
+    int endIndex = index % (nOfCurrencies - 1);
+    if (endIndex >= startIndex) {
+        endIndex++;
+    }
+    return {startIndex, endIndex};
+}
+
+std::vector<int> ArbitrageDetector::decodeIndexTriplet(int index) {
+    int iters = index / (nOfCurrencies - 2);
+    int startIndex = iters / (nOfCurrencies - 1);
+    int middleIndex = iters % (nOfCurrencies - 1);
+    int endIndex = index % (nOfCurrencies - 2);
+
+    if (middleIndex >= startIndex) {
+        middleIndex++;
+    }
+    if (endIndex >= std::min(startIndex, middleIndex)) {
+        endIndex++;
+    }
+    if (endIndex >= std::max(startIndex, middleIndex)) {
+        endIndex++;
+    }
+    return {startIndex, middleIndex, endIndex};
+}
+
+void ArbitrageDetector::pullGraph(std::vector<int>& encodedIndices) {
     if (!redisClient) {
         std::cerr << "No redis cache is provided for pulling the graph.\n";
         throw;
     }
-    edges.clear();
-    for (int sourceIdx = 0; sourceIdx < nOfCurrencies; ++sourceIdx) {
-        for (int destinationIdx = 0; destinationIdx < nOfCurrencies; ++destinationIdx) {
-            if (sourceIdx == destinationIdx) {
-                continue;
-            }
-            auto res = redisClient->get(CURRENCIES[sourceIdx] + ":" + CURRENCIES[destinationIdx]);
-            if (res) {
-                graph[sourceIdx][destinationIdx] = -log(atof(res->c_str()));
-                edges.push_back({sourceIdx, destinationIdx});
-            }
+    for (auto index : encodedIndices) {
+        auto currencyPair = decodeIndexPair(index);
+        auto res = redisClient->get(CURRENCIES[currencyPair[0]] + ":" + CURRENCIES[currencyPair[1]]);
+        if (res) {
+            graph[currencyPair[0]][currencyPair[1]] = -log(atof(res->c_str()));
         }
     }
 }
 
-ExchangeCostUpdateResponse ArbitrageDetector::updateExchangeCost(ExchangeRateEdge& edge, bool updateParent) {
-    auto [source, destination] = edge;
-    double candidateCost = (exchangeCost[source] == DOUBLE_MAX) ? DOUBLE_MAX : exchangeCost[source] + graph[source][destination];
-    if (candidateCost < exchangeCost[destination]) {
-        exchangeCost[destination] = candidateCost;
-        if (updateParent) {
-            previousCurrency[destination] = source;
-        }
-        return ExchangeCostUpdateResponse::SUCCESS;
-    }
-    return ExchangeCostUpdateResponse::FAIL;
-}
-
-void ArbitrageDetector::printArbitrage(std::vector<int> currencies) {
+void ArbitrageDetector::printArbitrage(std::vector<int>& currencies) {
     std::cout << "Arbitrage detected @ ";
     double profit = 0;
     int previousCurrencyIdx = -1;
@@ -56,26 +62,31 @@ void ArbitrageDetector::printArbitrage(std::vector<int> currencies) {
     std::cout << CURRENCIES[currencies[0]] << " | Profit = " << std::format("{:.9f}%", 100.0 * (std::exp(-profit) - 1.0)) << '\n';
 }
 
-void ArbitrageDetector::runArbitrageDetector() {
-    auto start = std::chrono::system_clock::now();
+bool ArbitrageDetector::checkArbitrageOpportunity(std::vector<int>& currencies) {
+    if (currencies.size() <= 1) {
+        std::cerr << "Arbitrage requires at least two currencies.\n";
+        return false;
+    }
+    double profit = 0;
+    int numCurrency = currencies.size();
+    for (int i = 1; i < numCurrency + 1; i++) {
+        double rate = graph[currencies[i - 1]][currencies[i % numCurrency]];
+        if (rate == DOUBLE_MAX) {
+            return false;
+        }
+        profit += rate;
+    }
+    return profit < 0;
+}
+
+int ArbitrageDetector::findArbitrages(std::vector<int>& encodedIndices) {
     int cnt = 0;
-    for (int i = 0; i < nOfCurrencies; i++) {
-        for (int j = 0; j < nOfCurrencies; j++) {
-            if (i == j) {
-                continue;
-            }
-            for (int k = 0; k < nOfCurrencies; k++) {
-                if (i == k || j == k) {
-                    continue;
-                }
-                double cost = graph[i][j] + graph[j][k] + graph[k][i];
-                if (cost < 0) {
-                    printArbitrage({i, j, k});
-                    cnt++;
-                }
-            }
+    for (auto index : encodedIndices) {
+        auto currencies = decodeIndexTriplet(index);
+        if (checkArbitrageOpportunity(currencies)) {
+            printArbitrage(currencies);
+            cnt++;
         }
     }
-    auto end = std::chrono::system_clock::now();
-    std::cerr << "time elapsed === " << end - start << " for " << cnt << " arbitrages" << '\n';
+    return cnt;
 }

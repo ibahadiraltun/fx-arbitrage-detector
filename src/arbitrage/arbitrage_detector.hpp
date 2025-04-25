@@ -13,7 +13,9 @@ const std::vector<std::string> CURRENCIES = {
     "cop", "rub", "ron", "pen"
 };
 constexpr double DOUBLE_MAX = std::numeric_limits<double>::max();
-constexpr int nOfCurrencies = 10; // until sgd
+constexpr int nOfCurrencies = 36;
+constexpr int nOfPairs = nOfCurrencies * (nOfCurrencies - 1);
+constexpr int nOfTriplets = nOfPairs * (nOfCurrencies - 2);
 
 typedef std::vector<std::vector<double>> ExchangeRateGraph;
 typedef std::pair<int,int> ExchangeRateEdge;
@@ -22,24 +24,16 @@ enum ExchangeCostUpdateResponse { SUCCESS, FAIL };
 class ArbitrageDetector {
 public:
     ArbitrageDetector(std::shared_ptr<IRedisWrapper> _redisClient);
-    void pullGraph();
-    void runArbitrageDetector();
+    void pullGraph(std::vector<int>& encodedIndices);
+    int findArbitrages(std::vector<int>& encodedIndices);
+    std::vector<int> decodeIndexPair(int index);
+    std::vector<int> decodeIndexTriplet(int index);
     ExchangeRateGraph getGraph() { return graph; }
-    std::vector<ExchangeRateEdge> getEdges() { return edges; }
-    std::vector<double> getExchangeCost() { return exchangeCost; }
-    std::vector<int> getPreviousCurrency() { return previousCurrency; }
 private:
     std::shared_ptr<IRedisWrapper> redisClient;
     ExchangeRateGraph graph;
-    std::vector<ExchangeRateEdge> edges;
-    std::vector<double> exchangeCost;
-    std::vector<int> previousCurrency;
-    int designatedCurrencyRoot = 0;
-
-    ExchangeCostUpdateResponse updateExchangeCost(ExchangeRateEdge& edge, bool updateParent = true);
-    void runBellmanFord();
-    void printArbitrage(int currency);
-    void printArbitrage(std::vector<int> currencies);
+    bool checkArbitrageOpportunity(std::vector<int>& currencies);
+    void printArbitrage(std::vector<int>& currencies);
 };
 
 #endif

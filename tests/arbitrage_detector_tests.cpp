@@ -29,13 +29,38 @@ TEST(ArbitrageDetectorTest, DefaultConstructor) {
             EXPECT_EQ(DOUBLE_MAX, detector.getGraph()[i][j]);
         }
     }
-    EXPECT_EQ(nOfCurrencies, detector.getExchangeCost().size());
+}
+
+TEST(ArbitrageDetectorTest, DecodeIndexPair) {
+    std::shared_ptr<IRedisWrapper> redisClient = std::make_shared<FakeRedisWrapper>();
+    ArbitrageDetector detector(redisClient);
+    int cnt = 0;
     for (int i = 0; i < nOfCurrencies; i++) {
-        EXPECT_EQ(DOUBLE_MAX, detector.getExchangeCost()[i]);
+        for (int j = 0; j < nOfCurrencies; j++) {
+            if (i == j) {
+                continue;
+            }
+            EXPECT_EQ(std::vector<int>({i, j}), detector.decodeIndexPair(cnt++));
+        }
     }
-    EXPECT_EQ(nOfCurrencies, detector.getPreviousCurrency().size());
+}
+
+TEST(ArbitrageDetectorTest, DecodeIndexTriplet) {
+    std::shared_ptr<IRedisWrapper> redisClient = std::make_shared<FakeRedisWrapper>();
+    ArbitrageDetector detector(redisClient);
+    int cnt = 0;
     for (int i = 0; i < nOfCurrencies; i++) {
-        EXPECT_EQ(-1, detector.getPreviousCurrency()[i]);
+        for (int j = 0; j < nOfCurrencies; j++) {
+            if (i == j) {
+                continue;
+            }
+            for (int k = 0; k < nOfCurrencies; k++) {
+                if (k == i || k == j) {
+                    continue;
+                }
+                EXPECT_EQ(std::vector<int>({i, j, k}), detector.decodeIndexTriplet(cnt++));
+            }
+        }
     }
 }
 
@@ -52,29 +77,57 @@ TEST(ArbitrageDetectorTest, PullGraph) {
             fakeRate += 0.1;
         }
     }
-
-    detector.pullGraph();
+    int cnt = 0;
     for (int i = 0; i < nOfCurrencies; i++) {
         for (int j = 0; j < nOfCurrencies; j++) {
             if (i != j) {
+                std::vector<int> tmp = {cnt++};
+                detector.pullGraph(tmp);
                 EXPECT_EQ(data[i][j], detector.getGraph()[i][j]);
             }
         }
     }
 }
 
-TEST(ArbitrageDetectorTest, RunArbitrageDetector) {
+TEST(ArbitrageDetectorTest, FindArbitragesEmpty) {
+    std::shared_ptr<IRedisWrapper> redisClient = std::make_shared<FakeRedisWrapper>();
+    ArbitrageDetector detector(redisClient);
+    std::vector<int> idx = {0};
+    detector.pullGraph(idx);
+    testing::internal::CaptureStdout();
+    detector.findArbitrages(idx);
+    std::string expected = "";
+    EXPECT_EQ(expected, testing::internal::GetCapturedStdout());
+}
+
+TEST(ArbitrageDetectorTest, FindArbitragesSingle) {
     std::shared_ptr<IRedisWrapper> redisClient = std::make_shared<FakeRedisWrapper>();
     ArbitrageDetector detector(redisClient);
     redisClient->set("usd:eur", "0.5"); // 0-1
     redisClient->set("eur:jpy", "1.3"); // 1-2
     redisClient->set("jpy:usd", "1.7"); // 2-0
-    detector.pullGraph();
+    std::vector<int> idx = {0, nOfCurrencies, (nOfCurrencies - 1) * 2};
+    detector.pullGraph(idx);
     testing::internal::CaptureStdout();
-    detector.runArbitrageDetector();
+    idx = {0};
+    detector.findArbitrages(idx);
+    std::string expected = "Arbitrage detected @ usd -> eur -> jpy -> usd | Profit = 10.500000000%\n";
+    EXPECT_EQ(expected, testing::internal::GetCapturedStdout());
+}
+
+TEST(ArbitrageDetectorTest, FindArbitragesMultiple) {
+    std::shared_ptr<IRedisWrapper> redisClient = std::make_shared<FakeRedisWrapper>();
+    ArbitrageDetector detector(redisClient);
+    redisClient->set("usd:eur", "0.5"); // 0-1
+    redisClient->set("eur:jpy", "1.3"); // 1-2
+    redisClient->set("jpy:usd", "1.7"); // 2-0
+    std::vector<int> idx = {0, nOfCurrencies, (nOfCurrencies - 1) * 2};
+    detector.pullGraph(idx);
+    testing::internal::CaptureStdout();
+    idx = {0, nOfCurrencies * (nOfCurrencies - 2), 2 * (nOfCurrencies - 1) * (nOfCurrencies - 2)}; // 0-1-2, 1-2-0, 2-0-1
+    detector.findArbitrages(idx);
     std::string expected = "Arbitrage detected @ usd -> eur -> jpy -> usd | Profit = 10.500000000%\n";
     expected += "Arbitrage detected @ eur -> jpy -> usd -> eur | Profit = 10.500000000%\n";
     expected += "Arbitrage detected @ jpy -> usd -> eur -> jpy | Profit = 10.500000000%\n";
     EXPECT_EQ(expected, testing::internal::GetCapturedStdout());
 }
-
