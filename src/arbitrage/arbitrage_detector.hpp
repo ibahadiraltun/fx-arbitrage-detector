@@ -23,7 +23,7 @@ class ArbitrageDetector {
 public:
     ArbitrageDetector(std::shared_ptr<RedisWrapper> _redisClient);
     void pullGraph();
-    void runArbitrageDetector();
+    void runArbitrageDetector(bool bellmanFord = false);
 private:
     std::shared_ptr<RedisWrapper> redisClient;
     ExchangeRateGraph graph;
@@ -33,7 +33,9 @@ private:
     int designatedRoot = 13;
 
     ExchangeCostUpdateResponse updateExchangeCost(ExchangeRateEdge& edge, bool updateParent = true);
+    void runBellmanFord();
     void printArbitrage(int currency);
+    void printArbitrage(std::vector<int> currencies);
 };
 
 #endif

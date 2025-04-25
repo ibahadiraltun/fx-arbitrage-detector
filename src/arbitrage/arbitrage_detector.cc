@@ -48,17 +48,17 @@ void ArbitrageDetector::printArbitrage(int currencyIdx) {
     std::cerr << "[" << std::format("{0:%F_%T}", std::chrono::system_clock::now()) << "] ";
     std::cerr << "Arbitrage detected @ " << CURRENCIES[currencyIdx];
     int previousCurrencyIdx = previousCurrency[currencyIdx];
-    double profit = std::exp(-graph[previousCurrencyIdx][currencyIdx]);
+    double profit = graph[previousCurrencyIdx][currencyIdx];
     do {
         std::cerr << " <- " << CURRENCIES[previousCurrencyIdx];
-        profit *= std::exp(-graph[previousCurrency[previousCurrencyIdx]][previousCurrencyIdx]);
+        profit += graph[previousCurrency[previousCurrencyIdx]][previousCurrencyIdx];
         previousCurrencyIdx = previousCurrency[previousCurrencyIdx];
     } while (previousCurrencyIdx != currencyIdx);
     std::cerr << " <- " << CURRENCIES[currencyIdx];
-    std::cerr << " | Profit = " << std::format("{:.5f}", profit) << "%\n";
+    std::cerr << " | Profit = " << std::format("{:.9f}%", std::exp(-profit) - 1.0) << '\n';
 }
 
-void ArbitrageDetector::runArbitrageDetector() {
+void ArbitrageDetector::runBellmanFord() {
     std::fill(exchangeCost.begin(), exchangeCost.end(), DOUBLE_MAX);
     std::fill(previousCurrency.begin(), previousCurrency.end(), -1);
     exchangeCost[designatedRoot] = 0;
@@ -76,10 +76,48 @@ void ArbitrageDetector::runArbitrageDetector() {
     }
 }
 
+void ArbitrageDetector::printArbitrage(std::vector<int> currencies) {
+    std::cerr << "[" << std::format("{0:%F_%T}", std::chrono::system_clock::now()) << "] ";
+    std::cerr << "Arbitrage detected @ ";
+    double profit = 0;
+    int previousCurrencyIdx = -1;
+    for (int currencyIdx : currencies) {
+        std::cerr << CURRENCIES[currencyIdx] << " -> ";
+        if (previousCurrencyIdx != -1) {
+            profit += graph[previousCurrencyIdx][currencyIdx];
+        }
+        previousCurrencyIdx = currencyIdx;
+    }
+    profit += graph[previousCurrencyIdx][currencies[0]];
+    std::cerr << CURRENCIES[currencies[0]] << " | Profit = " << std::format("{:.9f}%", std::exp(-profit) - 1.0) << '\n';
+}
+
+void ArbitrageDetector::runArbitrageDetector(bool bellmanFord) {
+    if (bellmanFord) {
+        runBellmanFord();
+        return;
+    }
+    for (int i = 0; i < nOfCurrencies; i++) {
+        for (int j = 0; j < nOfCurrencies; j++) {
+            if (i == j) {
+                continue;
+            }
+            for (int k = 0; k < nOfCurrencies; k++) {
+                if (i == k || j == k) {
+                    continue;
+                }
+                double cost = graph[i][j] + graph[j][k] + graph[k][i];
+                if (cost < 0) {
+                    printArbitrage({i, j, k});
+                }
+            }
+        }
+    }
+}
+
 int main() {
     std::shared_ptr<RedisWrapper> redisClient = std::make_shared<RedisWrapper>("127.0.0.1", 6379);
     ArbitrageDetector detector(redisClient);
-
     while (true) {
         detector.pullGraph();
         detector.runArbitrageDetector();
