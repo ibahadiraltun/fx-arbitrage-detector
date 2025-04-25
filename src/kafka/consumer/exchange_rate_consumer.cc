@@ -1,6 +1,7 @@
 #include <glib.h>
 #include <librdkafka/rdkafka.h>
-#include <hiredis/hiredis.h>
+#include <iostream>
+#include "../../redis/redis_wrapper.hpp"
 
 static void set_config(rd_kafka_conf_t *conf, char *key, char *value) {
     char errstr[512];
@@ -18,15 +19,9 @@ static void stop(int sig) {
     run = 0;
 }
 
-void setRedisData(redisContext* context, const char* key, const char* value) {
-    redisReply *reply = (redisReply*)(redisCommand(context, "SET %s %s", key, value));
-    if (reply->type == REDIS_REPLY_ERROR) {
-        printf("Error on redis SET: %s", reply->str);
-    }
-    freeReplyObject(reply);
-}
-
 int main (int argc, char **argv) {
+    RedisWrapper redis("127.0.0.1", 6379);
+
     rd_kafka_t *consumer;
     rd_kafka_conf_t *conf;
     rd_kafka_resp_err_t err;
@@ -58,22 +53,14 @@ int main (int argc, char **argv) {
     rd_kafka_topic_partition_list_destroy(subscription);
 
     signal(SIGINT, stop);
-
-    redisContext *context = redisConnect("127.0.0.1", 6379);
-    if (context->err) {
-        printf("error: %s\n", context->errstr);
-        return 1;
-    }
  
     while (run) {
         rd_kafka_message_t *consumer_message;
-
         consumer_message = rd_kafka_consumer_poll(consumer, 500);
         if (!consumer_message) {
             g_message("Waiting...");
             continue;
         }
-
         if (consumer_message->err) {
             if (consumer_message->err == RD_KAFKA_RESP_ERR__PARTITION_EOF) {
             } else {
@@ -81,7 +68,7 @@ int main (int argc, char **argv) {
                 return 1;
             }
         } else {
-            setRedisData(context, (const char *)consumer_message->key, (const char *)consumer_message->payload);
+            redis.set((const char*) consumer_message->key, (const char*) consumer_message->payload);
             g_message("Consumed event from topic %s: key = %.*s value = %s partition = %d",
                       rd_kafka_topic_name(consumer_message->rkt),
                       (int)consumer_message->key_len,
